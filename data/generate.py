@@ -5,7 +5,7 @@ Usage:
     python3 generate.py [test|full]
 
     test  — 100 rows to verify correctness (default)
-    full  — massive dataset, ~2 hours
+    full  — massive dataset (~1 hour)
 """
 
 import sys
@@ -26,12 +26,12 @@ if __name__ == "__main__":
             output_path=OUTPUT,
             samples_per_size=5,
             min_circles=6,
-            max_circles=25,
+            max_circles=23,
             seed=42,
         )
 
     elif mode == "full":
-        print("FULL MODE: massive dataset (~2 hours)\n")
+        print("FULL MODE: massive dataset (~1 hour)\n")
 
         # Tier 1: 6-12, dirt cheap
         print("=" * 50)
@@ -58,36 +58,23 @@ if __name__ == "__main__":
             seed=500000,
         )
 
-        # Tier 3: 19-22, moderate
+        # Tier 3: 19-23, moderate
         t3 = OUTPUT.replace(".csv", "_t3.csv")
         print("\n" + "=" * 50)
-        print("TIER 3: 19-22 circles")
+        print("TIER 3: 19-23 circles")
         print("=" * 50)
         generate_csv(
             output_path=t3,
             samples_per_size=2000,
             min_circles=19,
-            max_circles=22,
+            max_circles=23,
             seed=1000000,
-        )
-
-        # Tier 4: 23-25, slow
-        t4 = OUTPUT.replace(".csv", "_t4.csv")
-        print("\n" + "=" * 50)
-        print("TIER 4: 23-25 circles")
-        print("=" * 50)
-        generate_csv(
-            output_path=t4,
-            samples_per_size=500,
-            min_circles=23,
-            max_circles=25,
-            seed=2000000,
         )
 
         # Merge
         print("\nMerging tiers...")
         with open(OUTPUT, "a") as out:
-            for path in [t2, t3, t4]:
+            for path in [t2, t3]:
                 with open(path, "r") as f:
                     next(f)  # skip header
                     for line in f:
