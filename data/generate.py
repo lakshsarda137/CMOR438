@@ -13,7 +13,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from rice_ml.data_generator.generator import generate_csv
+from brainvita.data_generator.generator import generate_csv
 
 OUTPUT = os.path.join(os.path.dirname(__file__), "brainvita_dataset.csv")
 

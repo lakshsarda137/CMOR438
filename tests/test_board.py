@@ -1,4 +1,4 @@
-"""Tests for rice_ml.board_constructor.board — create_board and populate_board."""
+"""Tests for brainvita.board_constructor.board — create_board and populate_board."""
 
 import sys
 import os
@@ -8,7 +8,7 @@ import pytest
 # Add src to path so rice_ml is importable without pip install
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from rice_ml.board_constructor.board import create_board, populate_board
+from brainvita.board_constructor.board import create_board, populate_board
 
 
 # ------------------------------------------------------------------ #
