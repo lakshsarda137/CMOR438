@@ -25,6 +25,39 @@ def _majority_vote(labels):
     return values[np.argmax(counts)]
 
 
+def _one_hot_predictions(predictions, classes):
+    """
+    Convert hard predictions into one-hot probability rows.
+    """
+    proba = np.zeros((predictions.shape[0], classes.shape[0]), dtype=float)
+    for class_index, cls in enumerate(classes):
+        proba[:, class_index] = predictions == cls
+    return proba
+
+
+def _aligned_predict_proba(model, X, classes):
+    """
+    Return class probabilities aligned to a shared class ordering.
+    """
+    if hasattr(model, "predict_proba"):
+        raw_proba = np.asarray(model.predict_proba(X), dtype=float)
+        model_classes = getattr(model, "classes_", None)
+        if model_classes is None:
+            predictions = np.asarray(model.predict(X))
+            return _one_hot_predictions(predictions, classes)
+
+        model_classes = np.asarray(model_classes)
+        aligned = np.zeros((X.shape[0], classes.shape[0]), dtype=float)
+        for model_index, cls in enumerate(model_classes):
+            target_index = np.where(classes == cls)[0]
+            if target_index.size == 1:
+                aligned[:, target_index[0]] = raw_proba[:, model_index]
+        return aligned
+
+    predictions = np.asarray(model.predict(X))
+    return _one_hot_predictions(predictions, classes)
+
+
 class BaggingClassifier:
     """
     Bootstrap aggregating classifier.
@@ -54,6 +87,7 @@ class BaggingClassifier:
 
         self.models_ = []
         self.n_features_in_ = None
+        self.classes_ = None
         self._rng = np.random.default_rng(random_state)
 
     def fit(self, X, y):
@@ -62,6 +96,7 @@ class BaggingClassifier:
         """
         X_arr, y_arr = check_X_y(X, y, allow_1d_X=True)
         self.n_features_in_ = X_arr.shape[1]
+        self.classes_ = np.unique(y_arr)
         sample_size = max(1, int(np.ceil(self.max_samples * X_arr.shape[0])))
 
         self.models_ = []
@@ -87,6 +122,30 @@ class BaggingClassifier:
         predictions = np.asarray([model.predict(X_arr) for model in self.models_], dtype=object)
         return np.asarray([_majority_vote(predictions[:, col]) for col in range(X_arr.shape[0])], dtype=object)
 
+    def predict_proba(self, X):
+        """
+        Predict class probabilities by averaging estimator probabilities.
+        """
+        if not self.models_:
+            raise RuntimeError("Call fit before predict_proba.")
+
+        X_arr = ensure_2d_numeric(X, name="X", allow_1d=True)
+        if X_arr.shape[1] != self.n_features_in_:
+            raise ValueError("X has a different number of features than the training data.")
+
+        probability_sum = np.zeros((X_arr.shape[0], self.classes_.shape[0]), dtype=float)
+        for model in self.models_:
+            probability_sum += _aligned_predict_proba(model, X_arr, self.classes_)
+        return probability_sum / len(self.models_)
+
+    def score(self, X, y):
+        """
+        Compute classification accuracy.
+        """
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return float(np.mean(y_true == y_pred))
+
 
 class VotingClassifier:
     """
@@ -103,6 +162,7 @@ class VotingClassifier:
             raise ValueError("models must contain at least one estimator.")
         self.models = models
         self.n_features_in_ = None
+        self.classes_ = None
 
     def fit(self, X, y):
         """
@@ -110,6 +170,7 @@ class VotingClassifier:
         """
         X_arr, y_arr = check_X_y(X, y, allow_1d_X=True)
         self.n_features_in_ = X_arr.shape[1]
+        self.classes_ = np.unique(y_arr)
 
         for model in self.models:
             model.fit(X_arr, y_arr)
@@ -128,6 +189,29 @@ class VotingClassifier:
 
         predictions = np.asarray([model.predict(X_arr) for model in self.models], dtype=object)
         return np.asarray([_majority_vote(predictions[:, col]) for col in range(X_arr.shape[0])], dtype=object)
+
+    def predict_proba(self, X):
+        """
+        Predict class probabilities by averaging model probabilities.
+        """
+        X_arr = ensure_2d_numeric(X, name="X", allow_1d=True)
+        if self.n_features_in_ is None:
+            raise RuntimeError("Call fit before predict_proba.")
+        if X_arr.shape[1] != self.n_features_in_:
+            raise ValueError("X has a different number of features than the training data.")
+
+        probability_sum = np.zeros((X_arr.shape[0], self.classes_.shape[0]), dtype=float)
+        for model in self.models:
+            probability_sum += _aligned_predict_proba(model, X_arr, self.classes_)
+        return probability_sum / len(self.models)
+
+    def score(self, X, y):
+        """
+        Compute classification accuracy.
+        """
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return float(np.mean(y_true == y_pred))
 
 
 class RandomForestClassifier:
@@ -171,6 +255,7 @@ class RandomForestClassifier:
 
         self.trees_ = []
         self.n_features_in_ = None
+        self.classes_ = None
         self._rng = np.random.default_rng(random_state)
 
     def fit(self, X, y):
@@ -179,6 +264,7 @@ class RandomForestClassifier:
         """
         X_arr, y_arr = check_X_y(X, y, allow_1d_X=True)
         self.n_features_in_ = X_arr.shape[1]
+        self.classes_ = np.unique(y_arr)
         self.trees_ = []
 
         for tree_index in range(self.n_estimators):
@@ -208,6 +294,30 @@ class RandomForestClassifier:
 
         predictions = np.asarray([tree.predict(X_arr) for tree in self.trees_], dtype=object)
         return np.asarray([_majority_vote(predictions[:, col]) for col in range(X_arr.shape[0])], dtype=object)
+
+    def predict_proba(self, X):
+        """
+        Predict class probabilities by averaging tree probabilities.
+        """
+        if not self.trees_:
+            raise RuntimeError("Call fit before predict_proba.")
+
+        X_arr = ensure_2d_numeric(X, name="X", allow_1d=True)
+        if X_arr.shape[1] != self.n_features_in_:
+            raise ValueError("X has a different number of features than the training data.")
+
+        probability_sum = np.zeros((X_arr.shape[0], self.classes_.shape[0]), dtype=float)
+        for tree in self.trees_:
+            probability_sum += _aligned_predict_proba(tree, X_arr, self.classes_)
+        return probability_sum / len(self.trees_)
+
+    def score(self, X, y):
+        """
+        Compute classification accuracy.
+        """
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return float(np.mean(y_true == y_pred))
 
 
 class RandomForestRegressor:
@@ -273,3 +383,15 @@ class RandomForestRegressor:
 
         predictions = np.asarray([tree.predict(X_arr) for tree in self.trees_], dtype=float)
         return np.mean(predictions, axis=0)
+
+    def score(self, X, y):
+        """
+        Compute the coefficient of determination, R^2.
+        """
+        y_true = np.asarray(y, dtype=float)
+        y_pred = self.predict(X)
+        total = np.sum((y_true - y_true.mean()) ** 2)
+        residual = np.sum((y_true - y_pred) ** 2)
+        if np.isclose(total, 0.0):
+            return 1.0 if np.isclose(residual, 0.0) else 0.0
+        return float(1.0 - residual / total)

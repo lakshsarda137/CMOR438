@@ -26,6 +26,11 @@ class TestRegressionTree:
         preds = model.predict(X)
         assert np.mean((preds - y) ** 2) < 1e-10
 
+    def test_score_is_one_on_piecewise_training_data(self, piecewise_data):
+        X, y = piecewise_data
+        model = RegressionTree(max_depth=2, random_state=0).fit(X, y)
+        assert model.score(X, y) == pytest.approx(1.0)
+
     def test_predict_before_fit_raises(self):
         with pytest.raises(RuntimeError, match="Call fit before predict"):
             RegressionTree().predict([[0.0]])

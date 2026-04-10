@@ -70,6 +70,12 @@ class GradientDescent1D:
         self.x_ = x
         return x
 
+    def fit(self, gradient, initial_x):
+        """
+        Alias for optimize to provide a more estimator-like API.
+        """
+        return self.optimize(gradient, initial_x)
+
 
 class GradientDescentND:
     """
@@ -136,3 +142,9 @@ class GradientDescentND:
         self.n_iter_ = self.max_iter
         self.x_ = x.copy()
         return x
+
+    def fit(self, gradient, initial_x):
+        """
+        Alias for optimize to provide a more estimator-like API.
+        """
+        return self.optimize(gradient, initial_x)

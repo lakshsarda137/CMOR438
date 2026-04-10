@@ -40,6 +40,18 @@ class TestDecisionTreeClassifier:
         preds = model.predict(X)
         assert preds.shape == y.shape
 
+    def test_predict_proba_has_expected_shape_and_sum(self, threshold_data):
+        X, y = threshold_data
+        model = DecisionTreeClassifier(max_depth=2, random_state=0).fit(X, y)
+        proba = model.predict_proba(X[:3])
+        assert proba.shape == (3, 2)
+        assert np.allclose(proba.sum(axis=1), 1.0)
+
+    def test_score_returns_accuracy(self, threshold_data):
+        X, y = threshold_data
+        model = DecisionTreeClassifier(max_depth=2, random_state=0).fit(X, y)
+        assert model.score(X, y) == pytest.approx(1.0)
+
     def test_invalid_max_depth_raises(self):
         with pytest.raises(ValueError, match="positive or None"):
             DecisionTreeClassifier(max_depth=0)

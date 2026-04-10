@@ -21,6 +21,7 @@ class _TreeNode:
     prediction: object
     feature_index: int = None
     threshold: float = None
+    proba: object = None
     left: object = None
     right: object = None
 
@@ -104,6 +105,15 @@ class DecisionTreeClassifier:
         values, counts = np.unique(y, return_counts=True)
         return values[np.argmax(counts)]
 
+    def _class_proba(self, y):
+        """
+        Compute class probabilities in the order of self.classes_.
+        """
+        probabilities = np.zeros(self.classes_.shape[0], dtype=float)
+        for class_index, cls in enumerate(self.classes_):
+            probabilities[class_index] = np.mean(y == cls)
+        return probabilities
+
     def _best_split(self, X, y):
         """
         Find the feature and threshold that minimize weighted Gini impurity.
@@ -148,17 +158,18 @@ class DecisionTreeClassifier:
         Recursively build the decision tree.
         """
         prediction = self._majority_class(y)
+        proba = self._class_proba(y)
 
         if (
             np.unique(y).size == 1
             or X.shape[0] < self.min_samples_split
             or (self.max_depth is not None and depth >= self.max_depth)
         ):
-            return _TreeNode(is_leaf=True, prediction=prediction)
+            return _TreeNode(is_leaf=True, prediction=prediction, proba=proba)
 
         feature_index, threshold = self._best_split(X, y)
         if feature_index is None:
-            return _TreeNode(is_leaf=True, prediction=prediction)
+            return _TreeNode(is_leaf=True, prediction=prediction, proba=proba)
 
         left_mask = X[:, feature_index] <= threshold
         right_mask = ~left_mask
@@ -171,6 +182,7 @@ class DecisionTreeClassifier:
             prediction=prediction,
             feature_index=feature_index,
             threshold=threshold,
+            proba=proba,
             left=left,
             right=right,
         )
@@ -208,6 +220,40 @@ class DecisionTreeClassifier:
         if X_arr.shape[1] != self.n_features_in_:
             raise ValueError("X has a different number of features than the training data.")
         return np.asarray([self._predict_one(row) for row in X_arr])
+
+    def predict_proba(self, X):
+        """
+        Predict class probabilities by returning leaf class frequencies.
+        """
+        if self.tree_ is None:
+            raise RuntimeError("Call fit before predict_proba.")
+
+        X_arr = ensure_2d_numeric(X, name="X", allow_1d=True)
+        if X_arr.shape[1] != self.n_features_in_:
+            raise ValueError("X has a different number of features than the training data.")
+
+        probabilities = np.asarray([self._traverse_one(row).proba for row in X_arr], dtype=float)
+        return probabilities
+
+    def _traverse_one(self, x):
+        """
+        Traverse the tree and return the terminal node for one sample.
+        """
+        node = self.tree_
+        while not node.is_leaf:
+            if x[node.feature_index] <= node.threshold:
+                node = node.left
+            else:
+                node = node.right
+        return node
+
+    def score(self, X, y):
+        """
+        Compute classification accuracy.
+        """
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return float(np.mean(y_true == y_pred))
 
 
 DecisionTree = DecisionTreeClassifier

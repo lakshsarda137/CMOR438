@@ -54,6 +54,17 @@ class TestMultilayerPerceptron:
         model = MultilayerPerceptron(hidden_layers=[3], learning_rate=0.1, max_iter=50, random_state=0).fit(X, y)
         assert len(model.loss_history_) >= 1
 
+    def test_score_is_high_on_training_data(self, or_data):
+        X, y = or_data
+        model = MultilayerPerceptron(
+            hidden_layers=[4],
+            learning_rate=0.1,
+            max_iter=5000,
+            tol=1e-10,
+            random_state=0,
+        ).fit(X, y)
+        assert model.score(X, y) == pytest.approx(1.0)
+
     def test_predict_before_fit_raises(self):
         with pytest.raises(RuntimeError, match="Call fit before predict_proba"):
             MultilayerPerceptron(hidden_layers=[3]).predict([[0.0, 0.0]])

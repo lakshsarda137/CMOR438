@@ -90,6 +90,14 @@ class LinearRegression:
             raise ValueError("X has a different number of features than the training data.")
         return X_arr @ self.coef_ + self.intercept_
 
+    def residuals(self, X, y):
+        """
+        Compute residuals on a dataset.
+        """
+        y_true = np.asarray(y, dtype=float)
+        y_pred = self.predict(X)
+        return y_true - y_pred
+
     def mse(self, X, y):
         """
         Compute mean squared error on a dataset.
@@ -104,6 +112,13 @@ class LinearRegression:
         """
         return float(np.sqrt(self.mse(X, y)))
 
+    def mae(self, X, y):
+        """
+        Compute mean absolute error on a dataset.
+        """
+        residuals = self.residuals(X, y)
+        return float(np.mean(np.abs(residuals)))
+
     def r2_score(self, X, y):
         """
         Compute the coefficient of determination.
@@ -115,3 +130,9 @@ class LinearRegression:
         if np.isclose(total, 0.0):
             return 1.0 if np.isclose(residual, 0.0) else 0.0
         return float(1.0 - residual / total)
+
+    def score(self, X, y):
+        """
+        Return the coefficient of determination, R^2.
+        """
+        return self.r2_score(X, y)

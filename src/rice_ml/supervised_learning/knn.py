@@ -58,13 +58,18 @@ class _KNNBase:
         """
         if self.weights == "uniform":
             return np.ones_like(distances)
-        return 1.0 / (distances + 1e-12)
+        zero_mask = distances <= 1e-12
+        if np.any(zero_mask):
+            return zero_mask.astype(float)
+        return 1.0 / np.maximum(distances, 1e-12)
 
     def fit(self, X, y):
         """
         Store the training dataset.
         """
         X_arr, y_arr = check_X_y(X, y, allow_1d_X=True)
+        if self.n_neighbors > X_arr.shape[0]:
+            raise ValueError("n_neighbors cannot exceed the number of training samples.")
         self.X_train_ = X_arr
         self.y_train_ = y_arr
         self.n_features_in_ = X_arr.shape[1]
@@ -81,6 +86,14 @@ class _KNNBase:
         if X_arr.shape[1] != self.n_features_in_:
             raise ValueError("X has a different number of features than the training data.")
         return X_arr
+
+    def kneighbors(self, X):
+        """
+        Return distances to and indices of the nearest neighbors.
+        """
+        X_arr = self._validate_query(X)
+        indices, distances = self._get_neighbor_info(X_arr)
+        return distances, indices
 
 
 class KNNClassifier(_KNNBase):
@@ -132,6 +145,14 @@ class KNNClassifier(_KNNBase):
 
         return probabilities
 
+    def score(self, X, y):
+        """
+        Compute classification accuracy.
+        """
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return float(np.mean(y_true == y_pred))
+
 
 class KNNRegressor(_KNNBase):
     """
@@ -143,6 +164,8 @@ class KNNRegressor(_KNNBase):
         Store numeric training targets for regression.
         """
         X_arr, y_arr = check_X_y(X, y, y_numeric=True, allow_1d_X=True)
+        if self.n_neighbors > X_arr.shape[0]:
+            raise ValueError("n_neighbors cannot exceed the number of training samples.")
         self.X_train_ = X_arr
         self.y_train_ = y_arr
         self.n_features_in_ = X_arr.shape[1]
@@ -162,3 +185,15 @@ class KNNRegressor(_KNNBase):
             predictions[row_idx] = np.sum(weights * values) / np.sum(weights)
 
         return predictions
+
+    def score(self, X, y):
+        """
+        Compute the coefficient of determination, R^2.
+        """
+        y_true = np.asarray(y, dtype=float)
+        y_pred = self.predict(X)
+        total = np.sum((y_true - y_true.mean()) ** 2)
+        residual = np.sum((y_true - y_pred) ** 2)
+        if np.isclose(total, 0.0):
+            return 1.0 if np.isclose(residual, 0.0) else 0.0
+        return float(1.0 - residual / total)

@@ -94,6 +94,7 @@ class KMeans:
         self.labels_ = None
         self.inertia_ = None
         self.n_iter_ = 0
+        self.n_features_in_ = None
         self._rng = np.random.default_rng(random_state)
 
     # ------------------------------------------------------------------
@@ -196,6 +197,7 @@ class KMeans:
         self.cluster_centers_ = centers
         self.labels_ = labels
         self.inertia_ = inertia
+        self.n_features_in_ = X.shape[1]
         return self
 
     def predict(self, X):
@@ -215,8 +217,33 @@ class KMeans:
         if self.cluster_centers_ is None:
             raise RuntimeError("Call fit before predict.")
         X = _validate_feature_matrix(X)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError("X has a different number of features than the training data.")
         labels, _ = self._assign_clusters(X, self.cluster_centers_)
         return labels
+
+    def transform(self, X):
+        """
+        Return distances from each sample to each learned centroid.
+        """
+        if self.cluster_centers_ is None:
+            raise RuntimeError("Call fit before transform.")
+        X = _validate_feature_matrix(X)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError("X has a different number of features than the training data.")
+        return self._pairwise_distances(X, self.cluster_centers_)
+
+    def score(self, X):
+        """
+        Return the negative within-cluster sum of squares on X.
+        """
+        if self.cluster_centers_ is None:
+            raise RuntimeError("Call fit before score.")
+        X = _validate_feature_matrix(X)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError("X has a different number of features than the training data.")
+        _, inertia = self._assign_clusters(X, self.cluster_centers_)
+        return -inertia
 
     def fit_predict(self, X):
         """

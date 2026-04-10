@@ -25,6 +25,11 @@ class TestGradientDescent1D:
         gd.optimize(lambda x: 2 * x, initial_x=1.0)
         assert len(gd.history_) >= 1
 
+    def test_fit_alias_matches_optimize(self):
+        gd = GradientDescent1D(learning_rate=0.1, max_iter=2000, tol=1e-10)
+        optimum = gd.fit(lambda x: 2 * (x - 3), initial_x=0.0)
+        assert optimum == pytest.approx(3.0, abs=1e-4)
+
     def test_invalid_learning_rate_raises(self):
         with pytest.raises(ValueError, match="positive"):
             GradientDescent1D(learning_rate=0.0)
@@ -47,3 +52,11 @@ class TestGradientDescentND:
         gd = GradientDescentND()
         with pytest.raises(ValueError, match="must match"):
             gd.optimize(lambda x: np.array([1.0]), initial_x=np.array([1.0, 2.0]))
+
+    def test_fit_alias_converges_in_multiple_dimensions(self):
+        gd = GradientDescentND(learning_rate=0.1, max_iter=3000, tol=1e-10)
+        optimum = gd.fit(
+            lambda x: 2 * (x - np.array([1.0, -2.0])),
+            initial_x=np.array([0.0, 0.0]),
+        )
+        assert np.allclose(optimum, np.array([1.0, -2.0]), atol=1e-4)

@@ -50,6 +50,18 @@ class TestLinearRegression:
         assert model.mse(X, y) == pytest.approx(0.0)
         assert model.rmse(X, y) == pytest.approx(0.0)
 
+    def test_mae_and_score_are_perfect_on_perfect_fit(self, simple_data):
+        X, y = simple_data
+        model = LinearRegression().fit(X, y)
+        assert model.mae(X, y) == pytest.approx(0.0)
+        assert model.score(X, y) == pytest.approx(1.0)
+
+    def test_residuals_are_zero_on_perfect_fit(self, simple_data):
+        X, y = simple_data
+        model = LinearRegression().fit(X, y)
+        residuals = model.residuals(X, y)
+        np.testing.assert_allclose(residuals, np.zeros_like(y), atol=1e-12)
+
     def test_predict_before_fit_raises(self):
         with pytest.raises(RuntimeError, match="Call fit before predict"):
             LinearRegression().predict([[0.0]])

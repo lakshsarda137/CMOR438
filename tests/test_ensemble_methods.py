@@ -59,6 +59,18 @@ class TestBaggingClassifier:
         with pytest.raises(ValueError, match="in \\(0, 1\\]"):
             BaggingClassifier(max_samples=0.0)
 
+    def test_predict_proba_and_score(self, class_data):
+        X, y = class_data
+        model = BaggingClassifier(
+            base_learner=lambda: DecisionTreeClassifier(max_depth=2, random_state=0),
+            n_estimators=5,
+            random_state=0,
+        ).fit(X, y)
+        proba = model.predict_proba(X[:2])
+        assert proba.shape == (2, 2)
+        assert np.allclose(proba.sum(axis=1), 1.0)
+        assert model.score(X, y) >= 0.75
+
 
 class TestVotingClassifier:
     """Tests for VotingClassifier."""
@@ -95,6 +107,18 @@ class TestVotingClassifier:
         with pytest.raises(RuntimeError, match="Call fit before predict"):
             voter.predict(X)
 
+    def test_predict_proba_and_score(self, class_data):
+        X, y = class_data
+        models = [
+            LogisticRegression(learning_rate=0.5, max_iter=3000),
+            KNNClassifier(n_neighbors=1),
+        ]
+        voter = VotingClassifier(models).fit(X, y)
+        proba = voter.predict_proba(X)
+        assert proba.shape == (4, 2)
+        assert np.allclose(proba.sum(axis=1), 1.0)
+        assert voter.score(X, y) >= 0.75
+
 
 class TestRandomForestClassifier:
     """Tests for RandomForestClassifier."""
@@ -122,6 +146,14 @@ class TestRandomForestClassifier:
         with pytest.raises(ValueError, match="positive"):
             RandomForestClassifier(n_estimators=0)
 
+    def test_predict_proba_and_score(self, class_data):
+        X, y = class_data
+        forest = RandomForestClassifier(n_estimators=9, max_depth=4, random_state=0).fit(X, y)
+        proba = forest.predict_proba(X[:5])
+        assert proba.shape == (5, 2)
+        assert np.allclose(proba.sum(axis=1), 1.0)
+        assert forest.score(X, y) >= 0.9
+
 
 class TestRandomForestRegressor:
     """Tests for RandomForestRegressor."""
@@ -146,3 +178,8 @@ class TestRandomForestRegressor:
     def test_invalid_n_estimators_raises(self):
         with pytest.raises(ValueError, match="positive"):
             RandomForestRegressor(n_estimators=0)
+
+    def test_score_is_reasonable(self, reg_data):
+        X, y = reg_data
+        forest = RandomForestRegressor(n_estimators=15, max_depth=5, random_state=0).fit(X, y)
+        assert forest.score(X, y) > 0.8

@@ -191,3 +191,15 @@ class RegressionTree:
         if X_arr.shape[1] != self.n_features_in_:
             raise ValueError("X has a different number of features than the training data.")
         return np.asarray([self._predict_one(row) for row in X_arr], dtype=float)
+
+    def score(self, X, y):
+        """
+        Compute the coefficient of determination, R^2.
+        """
+        y_true = np.asarray(y, dtype=float)
+        y_pred = self.predict(X)
+        total = np.sum((y_true - y_true.mean()) ** 2)
+        residual = np.sum((y_true - y_pred) ** 2)
+        if np.isclose(total, 0.0):
+            return 1.0 if np.isclose(residual, 0.0) else 0.0
+        return float(1.0 - residual / total)

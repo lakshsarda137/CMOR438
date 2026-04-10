@@ -25,7 +25,14 @@ class Perceptron:
         Included for API symmetry; training is deterministic here.
     """
 
-    def __init__(self, learning_rate=1.0, max_iter=1000, random_state=None):
+    def __init__(
+        self,
+        learning_rate=1.0,
+        max_iter=1000,
+        fit_intercept=True,
+        shuffle=True,
+        random_state=None,
+    ):
         if learning_rate <= 0:
             raise ValueError("learning_rate must be positive.")
         if max_iter <= 0:
@@ -33,6 +40,8 @@ class Perceptron:
 
         self.learning_rate = learning_rate
         self.max_iter = max_iter
+        self.fit_intercept = fit_intercept
+        self.shuffle = shuffle
         self.random_state = random_state
 
         self.coef_ = None
@@ -41,6 +50,7 @@ class Perceptron:
         self.errors_ = []
         self.n_iter_ = 0
         self.n_features_in_ = None
+        self._rng = np.random.default_rng(random_state)
 
     def _encode_y(self, y):
         """
@@ -67,11 +77,18 @@ class Perceptron:
 
         for iteration in range(1, self.max_iter + 1):
             errors = 0
-            for x_i, y_i in zip(X_arr, y_encoded):
+            indices = np.arange(n_samples)
+            if self.shuffle:
+                self._rng.shuffle(indices)
+
+            for index in indices:
+                x_i = X_arr[index]
+                y_i = y_encoded[index]
                 margin = y_i * (np.dot(x_i, self.coef_) + self.intercept_)
                 if margin <= 0.0:
                     self.coef_ += self.learning_rate * y_i * x_i
-                    self.intercept_ += self.learning_rate * y_i
+                    if self.fit_intercept:
+                        self.intercept_ += self.learning_rate * y_i
                     errors += 1
             self.errors_.append(errors)
             self.n_iter_ = iteration
@@ -98,3 +115,11 @@ class Perceptron:
         """
         scores = self.decision_function(X)
         return np.where(scores >= 0.0, self.classes_[1], self.classes_[0])
+
+    def score(self, X, y):
+        """
+        Compute classification accuracy.
+        """
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return float(np.mean(y_true == y_pred))

@@ -55,6 +55,16 @@ class TestKMeans:
 
         np.testing.assert_array_equal(predictions, model.labels_)
 
+    def test_transform_returns_distances_to_centers(self, two_cluster_data):
+        model = KMeans(n_clusters=2, random_state=0).fit(two_cluster_data)
+        distances = model.transform(two_cluster_data[:2])
+        assert distances.shape == (2, 2)
+        assert np.all(distances >= 0.0)
+
+    def test_score_is_negative_inertia(self, two_cluster_data):
+        model = KMeans(n_clusters=2, random_state=0).fit(two_cluster_data)
+        assert model.score(two_cluster_data) == pytest.approx(-model.inertia_)
+
     def test_predict_before_fit_raises(self):
         with pytest.raises(RuntimeError, match="Call fit before predict"):
             KMeans(n_clusters=2).predict(np.array([[0.0, 0.0]]))

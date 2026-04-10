@@ -181,3 +181,11 @@ class MultilayerPerceptron:
         """
         probs = self.predict_proba(X)[:, 1]
         return np.where(probs >= 0.5, self.classes_[1], self.classes_[0])
+
+    def score(self, X, y):
+        """
+        Compute classification accuracy.
+        """
+        y_true = np.asarray(y)
+        y_pred = self.predict(X)
+        return float(np.mean(y_true == y_pred))
